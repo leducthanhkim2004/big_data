@@ -1,31 +1,43 @@
 import socket
 import json
 import time
-import random
 import threading
 import os
-import hashlib
+import signal
+import sys
 from datetime import datetime
 from typing import List, Dict, Any
 
+try:
+    import psutil
+except ImportError:
+    print("❌ psutil not installed. Install with: pip install psutil")
+    sys.exit(1)
+
 class DistributedStorageClient:
-    def __init__(self, server_host='localhost', server_port=8888, node_id=None):
+    def __init__(self, server_host='localhost', server_port=1234, node_id=None):
         self.server_host = server_host
         self.server_port = server_port
-        self.node_id = node_id or f"node_{random.randint(1000, 9999)}"
+        self.node_id = node_id or f"node_{os.getpid()}"
         self.running = False
         self.socket = None
+        self.start_time = time.time()
         
-        # Storage simulation
+        # Storage configuration
         self.storage_path = f"./storage_{self.node_id}"
-        self.data_blocks = {}  # Dictionary of data blocks this client stores {block_id: block_info}
-        self.max_storage_gb = random.uniform(50, 200)  # Random storage capacity
-        self.block_operations_count = 0
-        
-        # Create storage directory
         os.makedirs(self.storage_path, exist_ok=True)
         
-        print(f"🔧 Initialized client {self.node_id} with {self.max_storage_gb:.1f}GB capacity")
+        print(f"🔧 Initialized client {self.node_id}")
+        
+        # Setup signal handlers
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+    
+    def signal_handler(self, signum, frame):
+        """Handle shutdown signals"""
+        print(f"\n🛑 Received signal {signum}, shutting down...")
+        self.stop()
+        sys.exit(0)
     
     def connect_to_server(self):
         """Establish connection to the server"""
@@ -39,30 +51,57 @@ class DistributedStorageClient:
             return False
     
     def get_system_status(self) -> Dict[str, Any]:
-        """Get current system status"""
+        """Get real system status using psutil"""
         try:
-            # Simulate CPU and memory usage (replace with real psutil if needed)
-            cpu_usage = random.uniform(10, 80)  # Simulate CPU usage between 10-80%
-            memory_usage = random.uniform(30, 90)  # Simulate memory usage between 30-90%
+            # Get real CPU usage
+            cpu_usage = psutil.cpu_percent(interval=1)
             
-            # Calculate storage usage
-            storage_used = self.calculate_storage_used()
+            # Get real memory usage
+            memory = psutil.virtual_memory()
+            memory_usage = memory.percent
             
-            # Simulate some data blocks
-            if random.random() < 0.1:  # 10% chance to add/remove blocks
-                self.simulate_data_operations()
+            # Get disk usage for storage path
+            disk_usage = psutil.disk_usage(self.storage_path)
+            storage_used_gb = (disk_usage.used) / (1024 ** 3)
+            storage_total_gb = (disk_usage.total) / (1024 ** 3)
+            storage_free_gb = (disk_usage.free) / (1024 ** 3)
+            
+            # Get network connections
+            connections = len(psutil.net_connections())
+            
+            # Calculate uptime
+            uptime_seconds = time.time() - self.start_time
+            
+            # Get process count
+            process_count = len(psutil.pids())
+            
+            # Get load average (Unix-like systems)
+            try:
+                load_avg = os.getloadavg()
+            except (OSError, AttributeError):
+                load_avg = [0.0, 0.0, 0.0]  # Windows doesn't have load average
             
             status_data = {
+                'type': 'status',
                 'node_id': self.node_id,
-                'status': self.determine_status(),
+                'client_name': f"StorageNode_{self.node_id}",
+                'status': self.determine_status(cpu_usage, memory_usage, storage_used_gb, storage_total_gb),
                 'timestamp': datetime.now().isoformat(),
-                'storage_used': storage_used,
-                'storage_total': self.max_storage_gb,
-                'cpu_usage': cpu_usage,
-                'memory_usage': memory_usage,
-                'active_connections': random.randint(0, 10),
-                'data_blocks': self.data_blocks,
-                'uptime': time.time()
+                'cpu_usage': round(cpu_usage, 2),
+                'memory_usage': round(memory_usage, 2),
+                'disk_usage': round((storage_used_gb / storage_total_gb) * 100, 2),
+                'storage_used_gb': round(storage_used_gb, 2),
+                'storage_total_gb': round(storage_total_gb, 2),
+                'storage_free_gb': round(storage_free_gb, 2),
+                'active_connections': connections,
+                'process_count': process_count,
+                'uptime_seconds': round(uptime_seconds, 2),
+                'load_average': load_avg,
+                'data': {
+                    'storage_path': self.storage_path,
+                    'pid': os.getpid(),
+                    'hostname': os.uname().nodename if hasattr(os, 'uname') else 'windows'
+                }
             }
             
             return status_data
@@ -70,57 +109,29 @@ class DistributedStorageClient:
         except Exception as e:
             print(f"❌ Error getting system status: {e}")
             return {
+                'type': 'status',
                 'node_id': self.node_id,
+                'client_name': f"StorageNode_{self.node_id}",
                 'status': 'error',
                 'error': str(e),
                 'timestamp': datetime.now().isoformat()
             }
     
-    def calculate_storage_used(self) -> float:
-        """Calculate storage used by this client"""
-        try:
-            total_size = 0
-            for root, dirs, files in os.walk(self.storage_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    if os.path.exists(file_path):
-                        total_size += os.path.getsize(file_path)
-            
-            # Convert bytes to GB
-            return total_size / (1024 ** 3)
-        except:
-            return len(self.data_blocks) * 0.1  # Simulate 100MB per block
-    
-    def simulate_data_operations(self):
-        """Simulate adding/removing data blocks"""
-        if random.random() < 0.7 and len(self.data_blocks) < 100:
-            # Add a new block
-            block_id = f"block_{random.randint(10000, 99999)}"
-            self.data_blocks.append({
-                'id': block_id,
-                'size': random.uniform(0.05, 0.5),  # 50MB to 500MB
-                'created': datetime.now().isoformat(),
-                'replicas': random.randint(1, 3)
-            })
-        elif len(self.data_blocks) > 5 and random.random() < 0.3:
-            # Remove a block
-            self.data_blocks.pop(random.randint(0, len(self.data_blocks) - 1))
-    
-    def determine_status(self) -> str:
-        """Determine current client status"""
-        storage_usage_percent = (self.calculate_storage_used() / self.max_storage_gb) * 100
+    def determine_status(self, cpu_usage: float, memory_usage: float, storage_used_gb: float, storage_total_gb: float) -> str:
+        """Determine current client status based on real metrics"""
+        storage_usage_percent = (storage_used_gb / storage_total_gb) * 100 if storage_total_gb > 0 else 0
         
-        if storage_usage_percent > 90:
+        if cpu_usage > 90 or memory_usage > 95 or storage_usage_percent > 95:
             return 'critical'
-        elif storage_usage_percent > 75:
+        elif cpu_usage > 75 or memory_usage > 85 or storage_usage_percent > 85:
             return 'warning'
-        elif len(self.data_blocks) == 0:
+        elif cpu_usage < 10 and memory_usage < 30:
             return 'idle'
         else:
             return 'healthy'
     
-    def announce_status(self):
-        """Send status announcement to server"""
+    def send_status(self):
+        """Send real status to server"""
         if not self.socket:
             return False
             
@@ -134,27 +145,28 @@ class DistributedStorageClient:
             response = self.socket.recv(1024).decode('utf-8')
             ack_data = json.loads(response)
             
-            print(f"📡 Status announced - {status_data['status']} | "
-                  f"Storage: {status_data['storage_used']:.1f}GB/{status_data['storage_total']:.1f}GB | "
-                  f"Blocks: {len(self.data_blocks)}")
+            print(f"📡 Status sent - {status_data['status']} | "
+                  f"CPU: {status_data['cpu_usage']}% | "
+                  f"Memory: {status_data['memory_usage']}% | "
+                  f"Disk: {status_data['disk_usage']}%")
             
             return True
             
         except Exception as e:
-            print(f"❌ Failed to announce status: {e}")
+            print(f"❌ Failed to send status: {e}")
             return False
     
-    def start_announcements(self, interval=15):
-        """Start periodic status announcements"""
+    def start_status_updates(self, interval=15):
+        """Start periodic status updates"""
         if not self.connect_to_server():
             return
             
         self.running = True
-        print(f"🔄 Starting status announcements every {interval} seconds")
+        print(f"🔄 Starting status updates every {interval} seconds")
         
         try:
             while self.running:
-                if not self.announce_status():
+                if not self.send_status():
                     print("🔄 Reconnecting to server...")
                     if not self.connect_to_server():
                         print("❌ Failed to reconnect. Waiting before retry...")
@@ -179,25 +191,6 @@ class DistributedStorageClient:
             except:
                 pass
         print(f"✅ Client {self.node_id} stopped")
-    
-    def simulate_workload(self):
-        """Simulate some storage workload in background"""
-        def workload():
-            while self.running:
-                try:
-                    # Simulate file operations
-                    if random.random() < 0.2:  # 20% chance
-                        # Create a small test file
-                        filename = f"{self.storage_path}/test_{random.randint(1000, 9999)}.dat"
-                        with open(filename, 'w') as f:
-                            f.write("x" * random.randint(1000, 10000))
-                    
-                    time.sleep(random.uniform(5, 15))
-                except:
-                    pass
-        
-        workload_thread = threading.Thread(target=workload, daemon=True)
-        workload_thread.start()
 
 def main():
     import sys
@@ -207,11 +200,8 @@ def main():
     
     client = DistributedStorageClient(node_id=node_id)
     
-    # Start background workload simulation
-    client.simulate_workload()
-    
-    # Start status announcements
-    client.start_announcements(interval=10)  # Announce every 10 seconds
+    # Start status updates
+    client.start_status_updates(interval=10)  # Send status every 10 seconds
 
 if __name__ == "__main__":
     main()
