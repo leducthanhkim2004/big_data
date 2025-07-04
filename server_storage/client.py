@@ -15,7 +15,7 @@ except ImportError:
     sys.exit(1)
 
 class DistributedStorageClient:
-    def __init__(self, server_host='localhost', server_port=1234, node_id=None):
+    def __init__(self, server_host='172.16.128.205', server_port=1234, node_id=None):
         self.server_host = server_host
         self.server_port = server_port
         self.node_id = node_id or f"node_{os.getpid()}"

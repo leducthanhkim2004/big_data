@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 class SimpleServer:
     """Simple server to receive real client status information"""
     
-    def __init__(self, host='localhost', port=1234):
+    def __init__(self, host='172.16.128.205', port=1234):
         self.host = host
         self.port = port
         self.clients = {}  # Store client information
