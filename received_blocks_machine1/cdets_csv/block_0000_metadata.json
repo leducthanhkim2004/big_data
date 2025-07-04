@@ -1,0 +1,12 @@
+{
+  "file_name": "cdets.csv",
+  "block_number": 0,
+  "start_offset": 0,
+  "end_offset": 612327,
+  "block_size_bytes": 612328,
+  "file_size_bytes": 612328,
+  "total_blocks": 1,
+  "progress_percent": 100.0,
+  "received_at": 1751605249.8542457,
+  "machine_id": "machine1"
+}

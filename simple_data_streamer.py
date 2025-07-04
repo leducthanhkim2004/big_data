@@ -46,14 +46,18 @@ class SimpleDataStreamer:
         print(f"Found {len(files)} files in {self.data_folder}")
         return files
     
-    def send_data_block(self, topic, file_path, block_data, block_number):
-        """Send a 128MB data block to Kafka"""
+    def send_data_block(self, topic, file_path, block_data, block_number, start_offset, end_offset):
+        """Send a 128MB data block to Kafka with offset information"""
         try:
             message = {
                 'file_name': file_path.name,
                 'file_path': str(file_path),
+                'file_size_bytes': file_path.stat().st_size,
                 'block_number': block_number,
                 'block_size_bytes': len(block_data),
+                'start_offset': start_offset,
+                'end_offset': end_offset,
+                'total_blocks': (file_path.stat().st_size + self.block_size - 1) // self.block_size,
                 'timestamp': time.time(),
                 'data': block_data
             }
@@ -75,13 +79,14 @@ class SimpleDataStreamer:
             return None
     
     def stream_file_in_blocks(self, file_path, topic):
-        """Stream a file in 128MB blocks"""
+        """Stream a file in 128MB blocks with offset information"""
         try:
             print(f"Processing file: {file_path.name}")
             file_size = file_path.stat().st_size
             print(f"File size: {file_size / (1024*1024):.2f} MB")
             
             block_number = 0
+            current_offset = 0
             
             with open(file_path, 'rb') as f:
                 while True:
@@ -91,14 +96,19 @@ class SimpleDataStreamer:
                     if not block_data:
                         break
                     
+                    # Calculate offsets
+                    start_offset = current_offset
+                    end_offset = current_offset + len(block_data) - 1
+                    
                     # Convert to base64 for JSON serialization
                     import base64
                     block_data_b64 = base64.b64encode(block_data).decode('utf-8')
                     
-                    # Send block to Kafka
-                    self.send_data_block(topic, file_path, block_data_b64, block_number)
+                    # Send block to Kafka with offset information
+                    self.send_data_block(topic, file_path, block_data_b64, block_number, start_offset, end_offset)
                     
                     block_number += 1
+                    current_offset += len(block_data)
                     
                     # Small delay between blocks
                     time.sleep(0.1)

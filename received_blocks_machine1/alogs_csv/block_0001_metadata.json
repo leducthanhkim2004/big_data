@@ -1,0 +1,12 @@
+{
+  "file_name": "alogs.csv",
+  "block_number": 1,
+  "start_offset": 134217728,
+  "end_offset": 145109114,
+  "block_size_bytes": 10891387,
+  "file_size_bytes": 145109115,
+  "total_blocks": 2,
+  "progress_percent": 100.0,
+  "received_at": 1751605253.7746766,
+  "machine_id": "machine1"
+}

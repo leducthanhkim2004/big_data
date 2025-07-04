@@ -48,11 +48,15 @@ class SimpleDataConsumer:
         return [f"{p.topic}-{p.partition}" for p in assignment]
     
     def save_data_block(self, message_data):
-        """Save a received data block to local storage"""
+        """Save a received data block to local storage with offset information"""
         try:
             file_name = message_data['file_name']
             block_number = message_data['block_number']
             block_data_b64 = message_data['data']
+            start_offset = message_data.get('start_offset', 0)
+            end_offset = message_data.get('end_offset', 0)
+            file_size = message_data.get('file_size_bytes', 0)
+            total_blocks = message_data.get('total_blocks', 0)
             
             # Decode base64 data
             block_data = base64.b64decode(block_data_b64)
@@ -66,12 +70,32 @@ class SimpleDataConsumer:
             with open(block_file, 'wb') as f:
                 f.write(block_data)
             
+            # Save offset metadata
+            metadata_file = file_dir / f"block_{block_number:04d}_metadata.json"
+            metadata = {
+                'file_name': file_name,
+                'block_number': block_number,
+                'start_offset': start_offset,
+                'end_offset': end_offset,
+                'block_size_bytes': len(block_data),
+                'file_size_bytes': file_size,
+                'total_blocks': total_blocks,
+                'progress_percent': (block_number + 1) / total_blocks * 100 if total_blocks > 0 else 0,
+                'received_at': time.time(),
+                'machine_id': self.machine_id
+            }
+            
+            with open(metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+            
             # Update statistics
             self.stats['blocks_received'] += 1
             self.stats['files_received'].add(file_name)
             self.stats['total_bytes'] += len(block_data)
             
             print(f"✓ Saved block {block_number} from {file_name} ({len(block_data)} bytes)")
+            print(f"  Offsets: {start_offset:,} - {end_offset:,} (File: {file_size:,} bytes)")
+            print(f"  Progress: {block_number + 1}/{total_blocks} ({metadata['progress_percent']:.1f}%)")
             print(f"  Saved to: {block_file}")
             
             return True

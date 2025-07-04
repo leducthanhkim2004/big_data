@@ -1,0 +1,12 @@
+{
+  "file_name": "plogs.csv",
+  "block_number": 0,
+  "start_offset": 0,
+  "end_offset": 134217727,
+  "block_size_bytes": 134217728,
+  "file_size_bytes": 1425291505,
+  "total_blocks": 11,
+  "progress_percent": 9.090909090909092,
+  "received_at": 1751605288.7708979,
+  "machine_id": "machine1"
+}
