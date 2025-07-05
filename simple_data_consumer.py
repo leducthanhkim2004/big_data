@@ -12,7 +12,7 @@ from kafka import KafkaConsumer
 from kafka.errors import KafkaError
 
 class SimpleDataConsumer:
-    def __init__(self, topic, group_id, machine_id, bootstrap_servers=['localhost:29092', 'localhost:29093', 'localhost:29094']):
+    def __init__(self, topic, group_id, machine_id, bootstrap_servers=['192.168.1.160:29092', '192.168.1.160:29093', '192.168.1.160:29094']):
         self.topic = topic
         self.group_id = group_id
         self.machine_id = machine_id
@@ -193,7 +193,7 @@ def main():
     parser.add_argument('--group-id', default='data-consumers', help='Consumer group ID')
     parser.add_argument('--machine-id', required=True, help='Unique machine ID (e.g., machine1, machine2)')
     parser.add_argument('--max-blocks', type=int, help='Maximum blocks to receive')
-    parser.add_argument('--brokers', nargs='+', default=['localhost:29092'], help='Kafka broker addresses')
+    parser.add_argument('--brokers', nargs='+', default=['192.168.1.160:29092'], help='Kafka broker addresses')
     
     args = parser.parse_args()
     
