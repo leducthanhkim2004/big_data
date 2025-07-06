@@ -1,0 +1,18 @@
+Binary File Analysis Report
+==================================================
+Source file: C:\Users\minht\big_data\processed_data_machine2\adets_csv\block_0000.bin
+Total records: 156243
+Columns (excluding dates): ['assignment_id', 'class_id', 'assignment_type', 'started_student_count', 'completed_or_mastered_student_count', 'problem_count', 'mean_correct', 'mean_time_on_task', 'completion_rate']
+
+Statistical Summary:
+       assignment_id      class_id  started_student_count  ...   mean_correct  mean_time_on_task  completion_rate
+count       156243.0      156243.0               156243.0  ...  138163.000000      150971.000000         156243.0
+mean   1261084.18148  60061.168193              11.852774  ...       0.624531        1005.497574          0.81797
+std     74492.411616   15847.29087               8.735613  ...       0.234434         934.110713         0.245753
+min         909795.0         928.0                    1.0  ...       0.000000           0.003000              0.0
+25%        1198226.5       46228.0                    5.0  ...       0.500000         371.260364             0.75
+50%        1260853.0       60150.0                   11.0  ...       0.663462         739.317533         0.909091
+75%        1324790.5       75605.0                   17.0  ...       0.800000        1352.450500              1.0
+max        1397277.0       84208.0                  121.0  ...       1.000000       23923.436000              1.0
+
+[8 rows x 8 columns]
