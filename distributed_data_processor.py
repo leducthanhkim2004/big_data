@@ -16,7 +16,7 @@ import hashlib
 import base64
 import threading
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from kafka import KafkaProducer, KafkaConsumer
@@ -29,6 +29,21 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+@dataclass
+class FileMetadata:
+    """File metadata including column information"""
+    file_name: str
+    file_type: str  # 'csv', 'parquet', 'json', 'binary', etc.
+    columns: Optional[List[str]] = None
+    data_types: Optional[Dict[str, str]] = None
+    row_count: Optional[int] = None
+    file_size_bytes: Optional[int] = None
+    created_time: Optional[float] = None
+    modified_time: Optional[float] = None
+    encoding: str = 'utf-8'
+    delimiter: str = ','  # for CSV files
+    has_header: bool = True
 
 @dataclass
 class DataBlock:
@@ -44,6 +59,7 @@ class DataBlock:
     timestamp: float
     file_size_bytes: int
     block_size_bytes: int
+    file_metadata: Optional[FileMetadata] = None  # Enhanced metadata
 
 @dataclass
 class ProcessingStatus:
@@ -96,8 +112,170 @@ class DistributedDataProcessor:
         """Calculate SHA-256 checksum for data integrity"""
         return hashlib.sha256(data).hexdigest()
     
+    def detect_file_metadata(self, file_path: Path) -> FileMetadata:
+        """Detect file metadata including columns and data types"""
+        try:
+            file_stat = file_path.stat()
+            file_extension = file_path.suffix.lower()
+            
+            # Basic metadata
+            metadata = FileMetadata(
+                file_name=file_path.name,
+                file_type='binary',  # default
+                file_size_bytes=file_stat.st_size,
+                created_time=file_stat.st_ctime,
+                modified_time=file_stat.st_mtime
+            )
+            
+            # Detect file type and extract columns
+            if file_extension in ['.csv', '.txt']:
+                metadata.file_type = 'csv'
+                metadata = self._extract_csv_metadata(file_path, metadata)
+            elif file_extension in ['.json', '.jsonl']:
+                metadata.file_type = 'json'
+                metadata = self._extract_json_metadata(file_path, metadata)
+            elif file_extension in ['.parquet']:
+                metadata.file_type = 'parquet'
+                metadata = self._extract_parquet_metadata(file_path, metadata)
+            elif file_extension in ['.dat', '.bin', '.data']:
+                metadata.file_type = 'binary'
+                metadata.encoding = 'binary'
+            
+            logger.info(f"Detected metadata for {file_path.name}: {metadata.file_type} file")
+            if metadata.columns:
+                logger.info(f"Columns: {metadata.columns}")
+            
+            return metadata
+            
+        except Exception as e:
+            logger.warning(f"Could not detect metadata for {file_path.name}: {e}")
+            return FileMetadata(
+                file_name=file_path.name,
+                file_type='unknown',
+                file_size_bytes=file_path.stat().st_size
+            )
+    
+    def _extract_csv_metadata(self, file_path: Path, metadata: FileMetadata) -> FileMetadata:
+        """Extract column information from CSV file"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                # Read first few lines to detect structure
+                first_line = f.readline().strip()
+                if first_line:
+                    # Try to detect delimiter
+                    delimiters = [',', ';', '\t', '|']
+                    for delim in delimiters:
+                        if delim in first_line:
+                            metadata.delimiter = delim
+                            break
+                    
+                    # Extract column names
+                    columns = first_line.split(metadata.delimiter)
+                    metadata.columns = [col.strip().strip('"').strip("'") for col in columns]
+                    
+                    # Count rows (approximate)
+                    f.seek(0)
+                    row_count = sum(1 for _ in f) - 1  # subtract header
+                    metadata.row_count = max(0, row_count)
+                    
+                    # Detect data types from first few rows
+                    f.seek(0)
+                    next(f)  # skip header
+                    metadata.data_types = self._detect_data_types(f, metadata.columns, metadata.delimiter)
+                    
+        except Exception as e:
+            logger.warning(f"Error extracting CSV metadata: {e}")
+        
+        return metadata
+    
+    def _extract_json_metadata(self, file_path: Path, metadata: FileMetadata) -> FileMetadata:
+        """Extract column information from JSON file"""
+        try:
+            import json
+            with open(file_path, 'r', encoding='utf-8') as f:
+                # Read first line to detect structure
+                first_line = f.readline().strip()
+                if first_line:
+                    try:
+                        data = json.loads(first_line)
+                        if isinstance(data, dict):
+                            metadata.columns = list(data.keys())
+                            metadata.data_types = {k: type(v).__name__ for k, v in data.items()}
+                    except json.JSONDecodeError:
+                        pass
+        except Exception as e:
+            logger.warning(f"Error extracting JSON metadata: {e}")
+        
+        return metadata
+    
+    def _extract_parquet_metadata(self, file_path: Path, metadata: FileMetadata) -> FileMetadata:
+        """Extract column information from Parquet file"""
+        try:
+            import pandas as pd
+            # Read just the schema
+            df = pd.read_parquet(file_path, engine='pyarrow')
+            metadata.columns = list(df.columns)
+            metadata.data_types = {col: str(dtype) for col, dtype in df.dtypes.items()}
+            metadata.row_count = len(df)
+        except ImportError:
+            logger.warning("pandas not available for Parquet metadata extraction")
+        except Exception as e:
+            logger.warning(f"Error extracting Parquet metadata: {e}")
+        
+        return metadata
+    
+    def _detect_data_types(self, file_handle, columns: List[str], delimiter: str) -> Dict[str, str]:
+        """Detect data types from sample rows"""
+        data_types = {}
+        sample_rows = 10
+        
+        for i, line in enumerate(file_handle):
+            if i >= sample_rows:
+                break
+            
+            values = line.strip().split(delimiter)
+            for col_idx, value in enumerate(values):
+                if col_idx >= len(columns):
+                    break
+                
+                col_name = columns[col_idx]
+                if col_name not in data_types:
+                    data_types[col_name] = self._detect_value_type(value)
+        
+        return data_types
+    
+    def _detect_value_type(self, value: str) -> str:
+        """Detect the type of a single value"""
+        value = value.strip()
+        
+        if not value:
+            return 'string'
+        
+        # Try integer
+        try:
+            int(value)
+            return 'integer'
+        except ValueError:
+            pass
+        
+        # Try float
+        try:
+            float(value)
+            return 'float'
+        except ValueError:
+            pass
+        
+        # Check if it's a date
+        if '/' in value or '-' in value:
+            return 'date'
+        
+        return 'string'
+    
+
+    
     def create_data_block(self, file_path: Path, block_data: bytes, 
-                         block_number: int, start_offset: int, end_offset: int) -> DataBlock:
+                         block_number: int, start_offset: int, end_offset: int, 
+                         file_metadata: Optional[FileMetadata] = None) -> DataBlock:
         """Create a data block with metadata and checksum"""
         checksum = self.calculate_checksum(block_data)
         
@@ -112,7 +290,8 @@ class DistributedDataProcessor:
             checksum=checksum,
             timestamp=time.time(),
             file_size_bytes=file_path.stat().st_size,
-            block_size_bytes=len(block_data)
+            block_size_bytes=len(block_data),
+            file_metadata=file_metadata
         )
     
     def send_data_block(self, block: DataBlock) -> bool:
@@ -121,6 +300,15 @@ class DistributedDataProcessor:
             # Convert block to JSON-serializable format
             message = asdict(block)
             message['data'] = base64.b64encode(block.data).decode('utf-8')
+            
+            # Properly serialize file metadata if present
+            if block.file_metadata:
+                message['file_metadata'] = asdict(block.file_metadata)
+                logger.info(f"📤 Sending file metadata for {block.file_name}: {block.file_metadata.file_type}")
+                if block.file_metadata.columns:
+                    logger.info(f"   Columns: {block.file_metadata.columns}")
+            else:
+                logger.warning(f"⚠️ No file metadata for {block.file_name} block {block.block_number}")
             
             # Use file name as key for partitioning
             key = f"{block.file_name}-block-{block.block_number}"
@@ -159,6 +347,12 @@ class DistributedDataProcessor:
                 machine_id='producer'
             )
             
+            # Detect file metadata once for all blocks
+            file_metadata = self.detect_file_metadata(file_path)
+            logger.info(f"Detected metadata for {file_path.name}: {file_metadata.file_type} file")
+            if file_metadata.columns:
+                logger.info(f"Columns: {file_metadata.columns}")
+            
             block_number = 0
             current_offset = 0
             
@@ -174,9 +368,9 @@ class DistributedDataProcessor:
                     start_offset = current_offset
                     end_offset = current_offset + len(block_data) - 1
                     
-                    # Create data block
+                    # Create data block with file metadata
                     block = self.create_data_block(file_path, block_data, block_number, 
-                                                 start_offset, end_offset)
+                                                 start_offset, end_offset, file_metadata)
                     
                     # Send block with retry logic
                     max_retries = 3
@@ -336,8 +530,7 @@ class DistributedDataConsumer:
             with open(block_file, 'wb') as f:
                 f.write(block_data)
             
-            # Save metadata
-            metadata_file = file_dir / f"block_{block_number:04d}_metadata.json"
+            # Enhanced metadata with file structure info
             metadata = {
                 'file_name': file_name,
                 'block_number': block_number,
@@ -348,6 +541,41 @@ class DistributedDataConsumer:
                 'verified': True
             }
             
+            # Add file metadata if available
+            if 'file_metadata' in message_data and message_data['file_metadata']:
+                file_metadata = message_data['file_metadata']
+                metadata['file_metadata'] = {
+                    'file_type': file_metadata.get('file_type', 'unknown'),
+                    'columns': file_metadata.get('columns', []),
+                    'data_types': file_metadata.get('data_types', {}),
+                    'row_count': file_metadata.get('row_count'),
+                    'encoding': file_metadata.get('encoding', 'utf-8'),
+                    'delimiter': file_metadata.get('delimiter', ','),
+                    'has_header': file_metadata.get('has_header', True)
+                }
+                
+                # Display basic metadata information for first block or when metadata changes
+                if block_number == 0 or file_name not in self.file_blocks:
+                    logger.info(f"\n📋 File Metadata for {file_name}:")
+                    logger.info(f"   Type: {file_metadata.get('file_type', 'unknown')}")
+                    if file_metadata.get('columns'):
+                        logger.info(f"   Columns: {file_metadata.get('columns')}")
+                    if file_metadata.get('data_types'):
+                        logger.info(f"   Data Types: {file_metadata.get('data_types')}")
+                    if file_metadata.get('row_count'):
+                        logger.info(f"   Row Count: {file_metadata.get('row_count')}")
+                    logger.info(f"   Encoding: {file_metadata.get('encoding', 'utf-8')}")
+                    if file_metadata.get('file_type') == 'csv':
+                        logger.info(f"   Delimiter: '{file_metadata.get('delimiter', ',')}'")
+            else:
+                # Debug: Log when no file metadata is found
+                logger.warning(f"⚠️ No file metadata found for {file_name} block {block_number}")
+                logger.debug(f"Available keys in message_data: {list(message_data.keys())}")
+                if 'file_metadata' in message_data:
+                    logger.debug(f"file_metadata value: {message_data['file_metadata']}")
+            
+            # Save metadata
+            metadata_file = file_dir / f"block_{block_number:04d}_metadata.json"
             with open(metadata_file, 'w') as f:
                 json.dump(metadata, f, indent=2)
             
@@ -483,7 +711,7 @@ def main():
     parser.add_argument('--max-blocks', type=int,
                        help='Maximum blocks to process (consumer mode)')
     parser.add_argument('--brokers', nargs='+', 
-                       default=['172.16.128.141:29092', '172.16.128.141:29093', '172.16.128.141:29094'],
+                       default=['172.16.128.111:29092', '172.16.128.111:29093', '172.16.128.111:29094'],
                        help='Kafka broker addresses')
     
     args = parser.parse_args()
