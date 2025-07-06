@@ -541,9 +541,14 @@ class DistributedDataConsumer:
                 'verified': True
             }
             
+            # Debug: Log the entire message structure
+            logger.info(f"🔍 Received message keys: {list(message_data.keys())}")
+            
             # Add file metadata if available
             if 'file_metadata' in message_data and message_data['file_metadata']:
                 file_metadata = message_data['file_metadata']
+                logger.info(f"✅ Found file metadata: {file_metadata}")
+                
                 metadata['file_metadata'] = {
                     'file_type': file_metadata.get('file_type', 'unknown'),
                     'columns': file_metadata.get('columns', []),
@@ -570,14 +575,29 @@ class DistributedDataConsumer:
             else:
                 # Debug: Log when no file metadata is found
                 logger.warning(f"⚠️ No file metadata found for {file_name} block {block_number}")
-                logger.debug(f"Available keys in message_data: {list(message_data.keys())}")
+                logger.warning(f"Available keys in message_data: {list(message_data.keys())}")
                 if 'file_metadata' in message_data:
-                    logger.debug(f"file_metadata value: {message_data['file_metadata']}")
+                    logger.warning(f"file_metadata value: {message_data['file_metadata']}")
+                else:
+                    logger.warning(f"file_metadata key not found in message")
             
             # Save metadata
             metadata_file = file_dir / f"block_{block_number:04d}_metadata.json"
             with open(metadata_file, 'w') as f:
                 json.dump(metadata, f, indent=2)
+            
+            # Debug: Log what was saved to the JSON file
+            logger.info(f"💾 Saved metadata to {metadata_file}")
+            logger.info(f"   Metadata keys: {list(metadata.keys())}")
+            if 'file_metadata' in metadata:
+                logger.info(f"   File metadata included: {metadata['file_metadata'].get('file_type', 'unknown')}")
+                if metadata['file_metadata'].get('columns'):
+                    logger.info(f"   Columns: {metadata['file_metadata']['columns']}")
+            else:
+                logger.warning(f"   No file metadata in saved JSON")
+            
+            # Also log the actual JSON content for debugging
+            logger.info(f"   Full metadata content: {json.dumps(metadata, indent=2)}")
             
             # Track file progress
             if file_name not in self.file_blocks:
