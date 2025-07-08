@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+service TaskService {
+  // Client sends its status and requests a task
+  rpc RequestTask(ClientStatus) returns (TaskAssignment);
+
+  // Client sends result after completing a task
+  rpc SendResult(TaskResult) returns (Ack);
+}
+
+message ClientStatus {
+  string client_id = 1;
+  string status = 2; // "free" or "busy"
+}
+
+message TaskAssignment {
+  string task = 1; // empty if no task
+}
+
+message TaskResult {
+  string client_id = 1;
+  string result = 2;
+}
+
+message Ack {
+  bool success = 1;
+}
