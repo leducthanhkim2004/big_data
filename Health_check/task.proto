@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+service TaskService {
+  rpc RequestTask (TaskRequest) returns (TaskAssignment);
+  rpc SendResult (TaskResult) returns (Ack);
+  rpc Heartbeat (stream HeartbeatMessage) returns (stream HeartbeatResponse);
+  rpc AddBlockToQueue (BlockRequest) returns (Ack);
+  rpc GetQueueStatus (QueueRequest) returns (QueueStatus);
+  rpc GetBlockStatus (BlockStatusRequest) returns (BlockStatus);
+}
+
+message TaskRequest {
+  string client_id = 1;
+  string status = 2;
+}
+
+message TaskAssignment {
+  string task = 1;
+}
+
+message TaskResult {
+  string client_id = 1;
+  string result = 2;
+}
+
+message Ack {
+  bool success = 1;
+}
+
+message HeartbeatMessage {
+  string client_id = 1;
+  string status = 2;
+  int64 timestamp = 3;
+}
+
+message HeartbeatResponse {
+  bool alive = 1;
+  string message = 2;
+}
+
+message BlockRequest {
+  string block_name = 1;
+}
+
+message QueueRequest {
+  // Empty request for getting queue status
+}
+
+message QueueStatus {
+  int32 task_queue_length = 1;
+  int32 block_queue_length = 2;
+  int32 active_clients = 3;
+  repeated string task_queue = 4;
+  repeated string block_queue = 5;
+}
+
+message BlockStatusRequest {
+  // Empty request for getting block status
+}
+
+message BlockStatus {
+  int32 pending_blocks = 1;
+  int32 processing_blocks = 2;
+  int32 completed_blocks = 3;
+  int32 total_blocks = 4;
+  map<string, string> block_status = 5;
+  map<string, string> leader_assignments = 6;
+}

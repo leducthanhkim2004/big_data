@@ -1,0 +1,102 @@
+{
+  "HDFS File Splitting": {
+    "status": "PASS",
+    "details": "Split into 1 blocks",
+    "timestamp": "2025-07-09T08:30:16.309136"
+  },
+  "HDFS Metadata": {
+    "status": "PASS",
+    "details": "Files: 0, Blocks: 2",
+    "timestamp": "2025-07-09T08:30:16.309182"
+  },
+  "HDFS Status Summary": {
+    "status": "PASS",
+    "details": "Pending: 2",
+    "timestamp": "2025-07-09T08:30:16.309222"
+  },
+  "Block Manager Status": {
+    "status": "PASS",
+    "details": "Pending: 3",
+    "timestamp": "2025-07-09T08:30:16.311251"
+  },
+  "Block Assignment": {
+    "status": "PASS",
+    "details": "Assigned: test_block_1",
+    "timestamp": "2025-07-09T08:30:16.311408"
+  },
+  "Status After Assignment": {
+    "status": "PASS",
+    "details": "Status: processing",
+    "timestamp": "2025-07-09T08:30:16.311461"
+  },
+  "Block Result Processing": {
+    "status": "PASS",
+    "details": "Result processed successfully",
+    "timestamp": "2025-07-09T08:30:16.311749"
+  },
+  "Block Cleanup": {
+    "status": "PASS",
+    "details": "Final blocks: 2",
+    "timestamp": "2025-07-09T08:30:16.311795"
+  },
+  "gRPC Server": {
+    "status": "FAIL",
+    "details": "Could not start/connect: <_InactiveRpcError of RPC that terminated with:\n\tstatus = StatusCode.UNAVAILABLE\n\tdetails = \"failed to connect to all addresses; last error: UNAVAILABLE: ipv6:%5B::1%5D:50051: ConnectEx: Connection refused (No connection could be made because the target machine actively refused it.\r\n -- 10061)\"\n\tdebug_error_string = \"UNKNOWN:Error received from peer  {grpc_message:\"failed to connect to all addresses; last error: UNAVAILABLE: ipv6:%5B::1%5D:50051: ConnectEx: Connection refused (No connection could be made because the target machine actively refused it.\\r\\n -- 10061)\", grpc_status:14}\"\n>",
+    "timestamp": "2025-07-09T08:30:29.372880"
+  },
+  "Flask Server 1": {
+    "status": "FAIL",
+    "details": "Could not start/connect",
+    "timestamp": "2025-07-09T08:30:40.532643"
+  },
+  "Flask Server 2": {
+    "status": "FAIL",
+    "details": "Could not start/connect",
+    "timestamp": "2025-07-09T08:30:51.739130"
+  },
+  "Load Balancer": {
+    "status": "PASS",
+    "details": "Status: 200",
+    "timestamp": "2025-07-09T08:30:53.793417"
+  },
+  "Flask Servers Overall": {
+    "status": "FAIL",
+    "details": "Only 1/3 servers running",
+    "timestamp": "2025-07-09T08:30:53.793551"
+  },
+  "Status Management Integration": {
+    "status": "SKIP",
+    "details": "gRPC server not available: <_InactiveRpcError of RPC that terminated with:\n\tstatus = StatusCode.UNAVAILABLE\n\tdetails = \"failed to connect to all addresses; last error: UNAVAILABLE: ipv4:127.0.0.1:50051: ConnectEx: Connection refused (No connection could be made because the target machine actively refused it.\r\n -- 10061)\"\n\tdebug_error_string = \"UNKNOWN:Error received from peer  {grpc_message:\"failed to connect to all addresses; last error: UNAVAILABLE: ipv4:127.0.0.1:50051: ConnectEx: Connection refused (No connection could be made because the target machine actively refused it.\\r\\n -- 10061)\", grpc_status:14}\"\n>",
+    "timestamp": "2025-07-09T08:30:56.115871"
+  },
+  "Leader-Follower System": {
+    "status": "SKIP",
+    "details": "gRPC server not available: <_InactiveRpcError of RPC that terminated with:\n\tstatus = StatusCode.UNAVAILABLE\n\tdetails = \"failed to connect to all addresses; last error: UNAVAILABLE: ipv4:127.0.0.1:50051: ConnectEx: Connection refused (No connection could be made because the target machine actively refused it.\r\n -- 10061)\"\n\tdebug_error_string = \"UNKNOWN:Error received from peer  {grpc_message:\"failed to connect to all addresses; last error: UNAVAILABLE: ipv4:127.0.0.1:50051: ConnectEx: Connection refused (No connection could be made because the target machine actively refused it.\\r\\n -- 10061)\", grpc_status:14}\"\n>",
+    "timestamp": "2025-07-09T08:30:58.435581"
+  },
+  "File Upload": {
+    "status": "PASS",
+    "details": "File split into 1 blocks",
+    "timestamp": "2025-07-09T08:30:58.463959"
+  },
+  "Block 0 Assignment": {
+    "status": "PASS",
+    "details": "Assigned to processor_0",
+    "timestamp": "2025-07-09T08:30:58.731419"
+  },
+  "Block 0 Processing": {
+    "status": "PASS",
+    "details": "Processed successfully",
+    "timestamp": "2025-07-09T08:30:58.732316"
+  },
+  "Concurrent Processing": {
+    "status": "PASS",
+    "details": "Processed in 0.11s",
+    "timestamp": "2025-07-09T08:30:58.847190"
+  },
+  "Final Block Status": {
+    "status": "PASS",
+    "details": "Pending: 7, Processing: 1",
+    "timestamp": "2025-07-09T08:30:58.847293"
+  }
+}

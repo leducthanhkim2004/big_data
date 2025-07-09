@@ -1,0 +1,40 @@
+{
+  "file_name": "adets.csv",
+  "block_number": 0,
+  "checksum": "ad2fe81c745a2e8cf516e63e24950c790876ea55ef9dd8b5bbbe992a453ffbb4",
+  "block_size_bytes": 17899403,
+  "processed_at": 1751781929.0355172,
+  "machine_id": "machine2",
+  "verified": true,
+  "file_metadata": {
+    "file_type": "csv",
+    "columns": [
+      "assignment_id",
+      "class_id",
+      "release_date",
+      "due_date",
+      "assignment_type",
+      "started_student_count",
+      "completed_or_mastered_student_count",
+      "problem_count",
+      "mean_correct",
+      "mean_time_on_task"
+    ],
+    "data_types": {
+      "assignment_id": "integer",
+      "class_id": "integer",
+      "release_date": "date",
+      "due_date": "date",
+      "assignment_type": "string",
+      "started_student_count": "integer",
+      "completed_or_mastered_student_count": "integer",
+      "problem_count": "integer",
+      "mean_correct": "float",
+      "mean_time_on_task": "float"
+    },
+    "row_count": 156243,
+    "encoding": "utf-8",
+    "delimiter": ",",
+    "has_header": true
+  }
+}

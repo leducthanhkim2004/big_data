@@ -1,0 +1,29 @@
+{
+  "files": {},
+  "blocks": {
+    "demo_file.txt_block_0": {
+      "assigned_clients": [
+        "node1",
+        "node2",
+        "node3"
+      ],
+      "size": 22506390,
+      "file": "demo_file.txt",
+      "created_at": "2025-07-09T07:30:31.736366",
+      "status": "assigned"
+    },
+    "demo_file2.txt_block_0": {
+      "assigned_clients": [
+        "node1",
+        "node2",
+        "node3"
+      ],
+      "size": 13503790,
+      "file": "demo_file2.txt",
+      "created_at": "2025-07-09T07:30:31.862650",
+      "status": "assigned"
+    }
+  },
+  "servers": [],
+  "created_at": "2025-07-09T01:12:31.809067"
+}
